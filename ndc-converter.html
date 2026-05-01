@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>NDC受注データ変換</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input, textarea, button { margin: 8px 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>NDC受注データ変換 (ローカル処理)</h1>
+
+  <p>Shift-JIS エンコードされた CSV ファイルを選択してください。</p>
+  <input type="file" id="fileInput" accept=".csv,.txt" />
+
+  <h3>店舗コード変換リスト（JSON形式）</h3>
+  <textarea id="conversionMap" rows="3">
+{
+  "0001" : "22201", 
+  "0002" : "22202",
+  "0003" : "22203",
+}
+  </textarea>
+
+  <button onclick="processFile()">変換してCSVをエクスポート</button>
+
+  <script>
+    function processFile() {
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files.length) {
+        alert('ファイルを選択してください');
+        return;
+      }
+
+      let map;
+      try {
+        map = JSON.parse(document.getElementById('conversionMap').value);
+      } catch {
+        alert('店舗コード変換リストのJSONが不正です');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.readAsArrayBuffer(file);
+
+      reader.onload = () => {
+        // Shift-JIS decode
+        const decoder = new TextDecoder('shift-jis');
+        const text = decoder.decode(reader.result);
+
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        const rows = lines.map(l => l.split(','));
+        const header = rows[0];
+
+        const colIndex = {
+          店舗コード: header.indexOf('店舗コード'),
+          小: header.indexOf('小'),
+          発注数: header.indexOf('発注数'),
+          納品日: header.indexOf('納品日')
+        };
+
+        for (const k in colIndex) {
+          if (colIndex[k] === -1) {
+            alert(`列が見つかりません: ${k}`);
+            return;
+          }
+        }
+
+        const output = [];
+        output.push(['店舗コード', '小', '発注数', '納品日']);
+
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const originalCode = r[colIndex['店舗コード']];
+          const convertedCode = map[originalCode] || originalCode;
+          output.push([
+            convertedCode,
+            r[colIndex['小']],
+            r[colIndex['発注数']],
+            r[colIndex['納品日']]
+          ]);
+        }
+
+        // UTF-8 with BOM
+        const bom = '\uFEFF';
+        const csv = output.map(r => r.join(',')).join('\n');
+        const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'converted.csv';
+        a.click();
+      };
+    }
+  </script>
+</body>
+</html>

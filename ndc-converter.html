@@ -11,10 +11,10 @@
 <body>
   <h1>NDC受注データ変換 (ローカル処理)</h1>
 
-  <p>Shift-JIS エンコードされた CSV ファイルを選択してください。</p>
+  <p>NDCからダウンロードした受注データ（Shift-JIS エンコードされたカンマ区切りtxtファイル）を選択してください。</p>
   <input type="file" id="fileInput" accept=".csv,.txt" />
 
-  <h3>店舗コード変換リスト（JSON形式）</h3>
+  <h3>店舗コード変換リスト（JSON形式 相手店番:自社得意先コード）</h3>
   <textarea id="conversionMap" rows="3">
 {
   "0001" : "22201", 
@@ -88,12 +88,20 @@
         const csv = output.map(r => r.join(',')).join('\n');
         const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
 
+        // 元ファイル名 + "-変換" を付けて保存
+        const originalName = file.name;
+        const dotIndex = originalName.lastIndexOf('.');
+        const baseName = dotIndex !== -1 ? originalName.slice(0, dotIndex) : originalName;
+        //const extension = dotIndex !== -1 ? originalName.slice(dotIndex) : '.csv';
+        const extension = '.csv';
+        const outputName = `${baseName}-変換${extension}`;
+
+
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'converted.csv';
+        a.download = outputName;
         a.click();
       };
     }
   </script>
 </body>
-</html>
